@@ -1,0 +1,97 @@
+in pom.xml
+
+        <dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+		
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		
+		
+	Create a WebSecurityConfigurerAdapter class which uses InMemoryUserDetailsManager. We can use LDAP server or any server to get encoded user credentials.
+	----------------------------------------------------------------------------------------
+		
+		@Configuration
+public class MySecurityConfig extends WebSecurityConfigurerAdapter{
+	@Override
+	protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+	
+		BCryptPasswordEncoder passwordEncoder=new BCryptPasswordEncoder();
+		InMemoryUserDetailsManager userDetailsService=new InMemoryUserDetailsManager();
+		UserDetails user=User.withUsername("raghu").password(passwordEncoder.encode("rana")).authorities("read").build();
+		userDetailsService.createUser(user);
+		auth.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder);
+	}
+	
+	@Override
+	protected void configure(HttpSecurity http) throws Exception {
+		http.httpBasic();
+		http.authorizeRequests().anyRequest().authenticated();
+	}
+	
+	
+	to test this-  http://localhost:8081/hello
+	
+	from postman- pass user details from authorization tab
+	
+	-------------------------------------------------------
+	
+	If authentication successful, the authentiaction information is stored in security context so that next time the authentication not happened again, it will match with jsession id.
+	If authentication not happened, it will not stored in security context, so authentiaction happens again.
+	 
+	
+	
+	We can provide our own authenticationProvider
+	--------------------------------------------
+	
+	@Component
+public class MyAuthenticationProvider implements AuthenticationProvider {
+
+	@Override
+	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+		String user=authentication.getName();
+		String password=authentication.getCredentials().toString();
+		if("raghu".equals(user) && "rana".equals(password)) {
+			return new UsernamePasswordAuthenticationToken(user,password,Arrays.asList());
+		}
+		else {
+			throw new BadCredentialsException("Invalid User or password");
+		}	
+		
+	}
+
+	@Override
+	public boolean supports(Class<?> authentication) {
+		
+		return authentication.equals(UsernamePasswordAuthenticationToken.class);
+	}
+	
+	
+	
+	
+	And in MySecurityConfig class add this
+	--------------------------------------------
+	@Autowired
+	MyAuthenticationProvider myAutheticationProvider;
+	
+	
+	 @Override protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+		 auth.authenticationProvider(myAutheticationProvider);
+	 }
+	
+	And we can add form base authentication--add this in MySecurityConfig class
+	----------------------------------------------------------------------------
+	
+	
+	@Override
+	protected void configure(HttpSecurity http) throws Exception {
+		http.formLogin();
+		http.authorizeRequests().antMatchers("/hello").authenticated();
+	} 
+	
+	----------------------------------------------------------------------------
+	 
